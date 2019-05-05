@@ -16,28 +16,41 @@ import UIKit
     private var isSwiped = false
     private var startPoint: CGPoint!
     private var context:CGContext!
+    private var delegate:ScratchCardListener!
 
     
     var coordinates = [(startPoint:CGPoint,endPoint:CGPoint)]()
+    
+    struct Constants {
+        let screatchThreshold = 0.4
+    }
 
     
     override func draw(_ rect: CGRect) {
         super.draw(rect)
     
-        guard let inputOverlayImage = ivInputOverlay else{
-            fatalError("Please Provide Overlay Image")
-        }
+        let inputOverlayImage = ivInputOverlay
         
         ivOverlay = inputOverlayImage
-        ivOverlay.draw(in: rect)
         
-        context = UIGraphicsGetCurrentContext()
-        
-        for each in coordinates {
-            self.drawLineFrom(fromPoint:each.startPoint , toPoint: each.endPoint)
+        if ivOverlay != nil {
+            
+            ivOverlay.draw(in: rect)
+            
+            context = UIGraphicsGetCurrentContext()
+            
+            for each in coordinates {
+                self.drawLineFrom(fromPoint:each.startPoint , toPoint: each.endPoint)
+            }
+            
+            if calculateArea() > 0.4{
+                if coordinates.count > 1{
+                    reset()
+                    delegate?.scratchFinishListener()
+                }
+            }
         }
-        
-        print(calculateArea())
+
     }
     
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
@@ -80,66 +93,54 @@ import UIKit
         
     }
     
-    private func calculateArea() -> Double{
-//        final int stepCount = (int) (scratchBitmap.getWidth() * 0.05);
-        let stepcount = ivOverlay.size.width * 0.05
-        
-        let widthInPixels = ivOverlay.size.width * UIScreen.main.scale
-        let heightInPixels = ivOverlay.size.height * UIScreen.main.scale
-        let totalPixels = Double(widthInPixels * heightInPixels)
-        var transparentPixels = 0.0
-        for i in stride(from: 0, to: ivOverlay.size.width, by: stepcount){
-            for j in stride(from: 0, to: ivOverlay.size.height, by: stepcount){
-                if(ivOverlay.getPixelColor(pos: CGPoint(x: i,y: j)).alpha()==0){
-                    transparentPixels+=1
-                    print("transparentPixels ---> \(transparentPixels)")
-                }
-            }
-        }
-        
-        return Double((stepcount*stepcount))*transparentPixels/totalPixels
-    }
-    
     private func reset(){
         ivOverlay = nil
         ivInputOverlay = nil
     }
-}
-
-extension UIImage {
-    func getPixelColor(pos: CGPoint) -> UIColor {
-        
-        let pixelData = self.cgImage!.dataProvider!.data
-        let data: UnsafePointer<UInt8> = CFDataGetBytePtr(pixelData)
-        
-        let pixelInfo: Int = ((Int(self.size.width) * Int(pos.y)) + Int(pos.x))
-        
-        let r = CGFloat(data[pixelInfo]) / CGFloat(255.0)
-        let g = CGFloat(data[pixelInfo+1]) / CGFloat(255.0)
-        let b = CGFloat(data[pixelInfo+2]) / CGFloat(255.0)
-        let a = CGFloat(data[pixelInfo+3]) / CGFloat(255.0)
-        
-        print("color ---> \(UIColor(red: r, green: g, blue: b, alpha: a))")
-        return UIColor(red: r, green: g, blue: b, alpha: a)
-    }
     
-}
-
-extension UIColor {
-    
-    func alpha() -> Int {
-        var fRed : CGFloat = 0
-        var fGreen : CGFloat = 0
-        var fBlue : CGFloat = 0
-        var fAlpha: CGFloat = 0
-        if self.getRed(&fRed, green: &fGreen, blue: &fBlue, alpha: &fAlpha) {
-            let iAlpha = Int(fAlpha * 255.0)
-            print("alpha ---> \(iAlpha)")
-            return iAlpha
-        } else {
-            return 0
+    private func calculateArea() -> Double{
+        
+        guard let image = getSnapshot(), let imageData = image.dataProvider?.data else {
+            return 0.0
         }
+        
+        let width = image.width
+        let height = image.height
+        let imageDataPointer: UnsafePointer<UInt8> = CFDataGetBytePtr(imageData)
+        var transparentPixelCount = 0
+        
+        for x in 0...width {
+            for y in 0...height {
+                let pixelDataPosition = ((width * y) + x) * 4
+                // The alpha value is the last 8 bits of the data
+                let alphaValue = imageDataPointer[pixelDataPosition + 3]
+                if alphaValue == 0 {
+                    transparentPixelCount += 1
+                }
+            }
+        }
+        
+        var transparentPercent = Double(transparentPixelCount) / Double((width * height))
+        transparentPercent = max(transparentPercent, 0)
+        transparentPercent = min(transparentPercent, 1)
+        print(transparentPercent)
+        return transparentPercent
     }
+    
+    func getSnapshot() -> CGImage? {
+        UIGraphicsBeginImageContextWithOptions(bounds.size, false, 0.0)
+        guard let ctx = UIGraphicsGetCurrentContext() else {
+            return nil
+        }
+        
+        layer.render(in: ctx)
+        let image = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+        return image?.cgImage
+    }
+    
 }
 
-
+protocol ScratchCardListener {
+    func scratchFinishListener()
+}
