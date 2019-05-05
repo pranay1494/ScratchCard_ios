@@ -46,7 +46,7 @@ import UIKit
             if calculateArea() > 0.4{
                 if coordinates.count > 1{
                     reset()
-                    delegate?.scratchFinishListener()
+                    delegate?.scratchFinished()
                 }
             }
         }
@@ -142,5 +142,5 @@ import UIKit
 }
 
 protocol ScratchCardListener {
-    func scratchFinishListener()
+    func scratchFinished()
 }
