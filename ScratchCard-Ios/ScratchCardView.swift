@@ -94,8 +94,13 @@ import UIKit
     }
     
     private func reset(){
-        ivOverlay = nil
-        ivInputOverlay = nil
+        //ivOverlay = nil
+        //ivInputOverlay = nil
+        UIView.animate(withDuration: 20000, delay: 1, options: UIView.AnimationOptions.curveEaseOut, animations: {
+            self.alpha = 0
+        }, completion: { finished in
+            self.isHidden = true
+        })
     }
     
     private func calculateArea() -> Double{
