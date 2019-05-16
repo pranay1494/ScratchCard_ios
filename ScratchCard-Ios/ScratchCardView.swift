@@ -17,6 +17,8 @@ import UIKit
     private var startPoint: CGPoint!
     private var context:CGContext!
     private var delegate:ScratchCardListener!
+    
+    private var isResetting: Bool = false
 
     
     var coordinates = [(startPoint:CGPoint,endPoint:CGPoint)]()
@@ -96,10 +98,16 @@ import UIKit
     private func reset(){
         //ivOverlay = nil
         //ivInputOverlay = nil
-        UIView.animate(withDuration: 20000, delay: 1, options: UIView.AnimationOptions.curveEaseOut, animations: {
+        
+        guard !isResetting else { return }
+        
+        print("animating")
+        isResetting = true
+        UIView.animate(withDuration: 2, delay: 1, options: UIView.AnimationOptions.curveEaseOut, animations: {
             self.alpha = 0
         }, completion: { finished in
             self.isHidden = true
+            self.isResetting = false
         })
     }
     
